@@ -1930,10 +1930,17 @@ function buildTls(packet, params) {
 }
 
 function buildAuth(packet, params) {
-	const clientParam = clientCapabilities(packet, {
-		db: params.db,
-		ssl: false
-	});
+	const clientParam =
+			(params.db ? ServerCapabilities.CLIENT_CONNECT_WITH_DB : 0) |
+			ServerCapabilities.CLIENT_PLUGIN_AUTH |
+			ServerCapabilities.CLIENT_LONG_PASSWORD |
+			ServerCapabilities.CLIENT_PROTOCOL_41 |
+			ServerCapabilities.CLIENT_TRANSACTIONS |
+			ServerCapabilities.CLIENT_MULTI_RESULTS |
+			ServerCapabilities.CLIENT_SECURE_CONNECTION |
+			(ServerCapabilities.CLIENT_LONG_FLAG & packet.serverCapabilities) |
+			(ServerCapabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA & packet.serverCapabilities) |
+			(ServerCapabilities.CLIENT_DEPRECATE_EOF & packet.serverCapabilities);
 	if (packet.serverCapabilities & ServerCapabilities.CLIENT_PLUGIN_AUTH) {
 		const writer = new BufferWriter(new Uint8Array(1000));
 		writer
@@ -2975,15 +2982,22 @@ class Connection1 {
 			let handshakeSequenceNumber = 1
 
 			if (this.config.tls?.enabled) {
+				console.log('tls enabled');
 				if ((handshakePacket.serverCapabilities & ServerCapabilities.CLIENT_SSL) === 0) {
 					throw new Error('Server does not support TLS')
 				}
 				const tlsData = buildTls(handshakePacket, { db: this.config.db });
 				await new SendPacket(tlsData, handshakeSequenceNumber++).send(this.conn);
+				try{
 				this.conn = await Deno.startTls(this.conn, {
 					hostname,
 					caCerts: this.config.tls.caCertificates,
 				});
+				}catch(e){
+					console.log(e);
+					throw e
+				}
+				console.log('tls end');
 			}
 
 			const data = buildAuth(handshakePacket, {
@@ -2991,11 +3005,14 @@ class Connection1 {
 				password,
 				db: this.config.db,
 			});
+			console.log('sendpacket');
 			await new SendPacket(data, handshakeSequenceNumber++).send(this.conn);
 			this.state = ConnectionState.CONNECTING;
 			this.serverVersion = handshakePacket.serverVersion;
 			this.capabilities = handshakePacket.serverCapabilities;
+			console.log('sendpacket info:'+ handshakePacket.serverCapabilities);
 			receive = await this.nextPacket();
+			console.log('sendpacket:get resp');
 			const authResult = parseAuth(receive);
 			let handler;
 			switch (authResult) {
@@ -3004,6 +3021,7 @@ class Connection1 {
 					handler = adaptedPlugin;
 					break;
 				case AuthResult.MethodMismatch:
+					console.log('mismatch')
 					const authSwitch = parseAuthSwitch(receive.body);
 					// If CLIENT_PLUGIN_AUTH capability is not supported, no new cipher is
 					// sent and we have to keep using the cipher sent in the init packet.
