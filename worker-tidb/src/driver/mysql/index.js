@@ -1398,7 +1398,7 @@ function debug1(func) {
         func();
     }
 }
-async function configLogger1(config) {
+async function configLogger(config) {
     let { enable =true , level ="INFO"  } = config;
     if (config.logger) level = config.logger.levelName;
     isDebug = level == "DEBUG";
@@ -1625,7 +1625,6 @@ var ServerCapabilities;
     ServerCapabilities[ServerCapabilities["CLIENT_IGNORE_SIGPIPE"] = 0x00001000] = "CLIENT_IGNORE_SIGPIPE";
     ServerCapabilities[ServerCapabilities["CLIENT_RESERVED"] = 0x00004000] = "CLIENT_RESERVED";
     ServerCapabilities[ServerCapabilities["CLIENT_PS_MULTI_RESULTS"] = 0x00040000] = "CLIENT_PS_MULTI_RESULTS";
-	  ServerCapabilities[ServerCapabilities["CLIENT_SSL"] = 0x800] = "CLIENT_SSL";
 })(ServerCapabilities || (ServerCapabilities = {}));
 var Charset;
 (function(Charset) {
@@ -1889,49 +1888,8 @@ var Charset;
     Charset[Charset["UTF8MB4"] = 45] = "UTF8MB4";
     Charset[Charset["UTF32"] = 60] = "UTF32";
 })(Charset || (Charset = {}));
-
-function clientCapabilities(
-		packet,
-		params
-) {
-	const clientParam =
-			(params.db ? ServerCapabilities.CLIENT_CONNECT_WITH_DB : 0) |
-			ServerCapabilities.CLIENT_PLUGIN_AUTH |
-			ServerCapabilities.CLIENT_LONG_PASSWORD |
-			ServerCapabilities.CLIENT_PROTOCOL_41 |
-			ServerCapabilities.CLIENT_TRANSACTIONS |
-			ServerCapabilities.CLIENT_MULTI_RESULTS |
-			ServerCapabilities.CLIENT_SECURE_CONNECTION |
-			(ServerCapabilities.CLIENT_LONG_FLAG & packet.serverCapabilities) |
-			(ServerCapabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA &
-					packet.serverCapabilities) |
-			(ServerCapabilities.CLIENT_DEPRECATE_EOF & packet.serverCapabilities) |
-			(params.ssl ? ServerCapabilities.CLIENT_SSL : 0);
-	return clientParam
-}
-
-function buildTls(
-		packet,
-		params
-) {
-	const clientParam = clientCapabilities(packet, {
-		db: params.db,
-		ssl: true
-	});
-	const writer = new BufferWriter(new Uint8Array(32));
-	writer
-	.writeUint32(clientParam)
-	.writeUint32(2 ** 24 - 1)
-	.write(Charset.UTF8_GENERAL_CI)
-	.skip(23);
-	return writer.wroteData;
-}
-
 function buildAuth(packet, params) {
-	const clientParam = clientCapabilities(packet, {
-		db: params.db,
-		ssl: false
-	});
+    const clientParam = (params.db ? ServerCapabilities.CLIENT_CONNECT_WITH_DB : 0) | ServerCapabilities.CLIENT_PLUGIN_AUTH | ServerCapabilities.CLIENT_LONG_PASSWORD | ServerCapabilities.CLIENT_PROTOCOL_41 | ServerCapabilities.CLIENT_TRANSACTIONS | ServerCapabilities.CLIENT_MULTI_RESULTS | ServerCapabilities.CLIENT_SECURE_CONNECTION | ServerCapabilities.CLIENT_LONG_FLAG & packet.serverCapabilities | ServerCapabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA & packet.serverCapabilities | ServerCapabilities.CLIENT_DEPRECATE_EOF & packet.serverCapabilities;
     if (packet.serverCapabilities & ServerCapabilities.CLIENT_PLUGIN_AUTH) {
         const writer = new BufferWriter(new Uint8Array(1000));
         writer.writeUint32(clientParam).writeUint32(2 ** 24 - 1).write(Charset.UTF8_GENERAL_CI).skip(23).writeNullTerminatedString(params.username);
@@ -2298,7 +2256,7 @@ var ConnectionState;
     ConnectionState[ConnectionState["CLOSING"] = 2] = "CLOSING";
     ConnectionState[ConnectionState["CLOSED"] = 3] = "CLOSED";
 })(ConnectionState || (ConnectionState = {}));
-class Connection1 {
+class Connection {
     state;
     capabilities;
     serverVersion;
@@ -2334,27 +2292,12 @@ class Connection1 {
         try {
             let receive = await this.nextPacket();
             const handshakePacket = parseHandshake(receive.body);
-
-						let handshakeSequenceNumber = 1
-
-						if (this.config.tls.enabled) {
-							if ((handshakePacket.serverCapabilities & ServerCapabilities.CLIENT_SSL) === 0) {
-								throw new Error('Server does not support TLS')
-							}
-							const tlsData = buildTls(handshakePacket, { db: this.config.db });
-							await new SendPacket(tlsData, handshakeSequenceNumber++).send(this.conn);
-							this.conn = await Deno.startTls(this.conn, {
-								hostname,
-								caCerts: this.config.tls.caCertificates,
-							});
-						}
-
             const data = buildAuth(handshakePacket, {
                 username,
                 password,
                 db: this.config.db
             });
-					  await new SendPacket(data, handshakeSequenceNumber++).send(this.conn);
+            await new SendPacket(data, 0x1).send(this.conn);
             this.state = ConnectionState.CONNECTING;
             this.serverVersion = handshakePacket.serverVersion;
             this.capabilities = handshakePacket.serverCapabilities;
@@ -2705,7 +2648,7 @@ class ConnectionPool {
         this._deferred.reduceSize();
     }
 }
-class Client1 {
+class Client {
     config = {};
     _pool;
     async createConnection() {
@@ -2778,9 +2721,9 @@ class Client1 {
         }
     }
 }
-export { Client1 as Client };
-export { Connection1 as Connection };
-export { configLogger1 as configLogger };
+export { Client as Client };
+export { Connection as Connection };
+export { configLogger as configLogger };
 export { mod as log };
 
 
