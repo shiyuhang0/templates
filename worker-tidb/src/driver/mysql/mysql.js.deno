@@ -4136,7 +4136,7 @@ function clientCapabilities(
 		packet,
 		params
 ) {
-	const clientParam: number =
+	const clientParam =
 			(params.db ? ServerCapabilities.CLIENT_CONNECT_WITH_DB : 0) |
 			ServerCapabilities.CLIENT_PLUGIN_AUTH |
 			ServerCapabilities.CLIENT_LONG_PASSWORD |
@@ -4156,7 +4156,7 @@ function buildTls(
 		packet,
 		params
 ) {
-	const clientParam: number = clientCapabilities(packet, {
+	const clientParam = clientCapabilities(packet, {
 		db: params.db,
 		ssl: true
 	});
@@ -4170,7 +4170,7 @@ function buildTls(
 }
 
 function buildAuth(packet, params) {
-	const clientParam: number = clientCapabilities(packet, {
+	const clientParam = clientCapabilities(packet, {
 		db: params.db,
 		ssl: false
 	});

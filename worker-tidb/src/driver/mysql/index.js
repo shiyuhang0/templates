@@ -1367,30 +1367,38 @@ async function setup(config) {
         state.loggers.set(loggerName, logger);
     }
 }
-await setup(DEFAULT_CONFIG);
-const mod = await async function() {
-    return {
-        LogLevels: LogLevels,
-        Logger: Logger,
-        LoggerConfig: LoggerConfig,
-        handlers: handlers,
-        getLogger: getLogger,
-        debug: debug,
-        info: info,
-        warning: warning,
-        error: error,
-        critical: critical,
-        setup: setup
-    };
-}();
-let logger = mod.getLogger();
+let mod
+let logger
+(async () => {
+	try {
+		await setup(DEFAULT_CONFIG);
+		mod = await async function() {
+			return {
+				LogLevels: LogLevels,
+				Logger: Logger,
+				handlers: handlers1,
+				LoggerConfig: LoggerConfig,
+				getLogger: getLogger,
+				debug: debug,
+				info: info,
+				warning: warning,
+				error: error,
+				critical: critical,
+				setup: setup
+			};
+		}();
+		logger = mod.getLogger();
+	} catch (err) {
+		console.error(err);
+	}
+})();
 let isDebug = false;
 function debug1(func) {
     if (isDebug) {
         func();
     }
 }
-async function configLogger(config) {
+async function configLogger1(config) {
     let { enable =true , level ="INFO"  } = config;
     if (config.logger) level = config.logger.levelName;
     isDebug = level == "DEBUG";
@@ -1886,7 +1894,7 @@ function clientCapabilities(
 		packet,
 		params
 ) {
-	const clientParam: number =
+	const clientParam =
 			(params.db ? ServerCapabilities.CLIENT_CONNECT_WITH_DB : 0) |
 			ServerCapabilities.CLIENT_PLUGIN_AUTH |
 			ServerCapabilities.CLIENT_LONG_PASSWORD |
@@ -1906,7 +1914,7 @@ function buildTls(
 		packet,
 		params
 ) {
-	const clientParam: number = clientCapabilities(packet, {
+	const clientParam = clientCapabilities(packet, {
 		db: params.db,
 		ssl: true
 	});
@@ -1920,7 +1928,7 @@ function buildTls(
 }
 
 function buildAuth(packet, params) {
-	const clientParam: number = clientCapabilities(packet, {
+	const clientParam = clientCapabilities(packet, {
 		db: params.db,
 		ssl: false
 	});
@@ -2290,7 +2298,7 @@ var ConnectionState;
     ConnectionState[ConnectionState["CLOSING"] = 2] = "CLOSING";
     ConnectionState[ConnectionState["CLOSED"] = 3] = "CLOSED";
 })(ConnectionState || (ConnectionState = {}));
-class Connection {
+class Connection1 {
     state;
     capabilities;
     serverVersion;
@@ -2697,7 +2705,7 @@ class ConnectionPool {
         this._deferred.reduceSize();
     }
 }
-class Client {
+class Client1 {
     config = {};
     _pool;
     async createConnection() {
@@ -2770,9 +2778,9 @@ class Client {
         }
     }
 }
-export { Client as Client };
-export { Connection as Connection };
-export { configLogger as configLogger };
+export { Client1 as Client };
+export { Connection1 as Connection };
+export { configLogger1 as configLogger };
 export { mod as log };
 
 
